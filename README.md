@@ -7,6 +7,7 @@
 A API Principal é um serviço desenvolvido em FastAPI que gerencia usuários, salários e metas de economia.
 Ela permite o cadastro e gerenciamento de usuários, bem como a criação e consulta de metas (goals), 
 realizando integração direta com a API Secundária para o gerenciamento completo das metas de economia.
+
 ---
 
 ## 🚀 Funcionalidades
