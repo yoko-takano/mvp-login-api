@@ -100,3 +100,16 @@ class SavingGoalViewSchema(BaseModel):
         Converts the datetime object to a formatted string.
         """
         return v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v
+
+
+class UserInfoSavingGoalSchema(BaseModel):
+    """
+    Defines how a user information and saving goal will be returned with full data.
+    TODO improve the comment!
+    """
+    username: str
+    password: str
+    goals: List[SavingGoalViewSchema]
+    salary: int
+    total_savings: float
+    created_at: datetime

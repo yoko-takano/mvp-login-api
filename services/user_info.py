@@ -1,9 +1,12 @@
+from typing import List
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 from logger import logger
 from models import Session
 from models.user_info import UserInfo
-from schemas.user_info import UserInfoSchema, UserInfoUpdateUsernameSchema, UserInfoUpdateSalarySchema, SavingGoalSchema
+from schemas.user_info import UserInfoSchema, UserInfoUpdateUsernameSchema, UserInfoUpdateSalarySchema, \
+    SavingGoalSchema, SavingGoalViewSchema, UserInfoSavingGoalSchema
 from services import SavingGoalService
 
 
@@ -50,6 +53,100 @@ class UserInfoService:
                 session.close()
 
     @staticmethod
+    def get_user_information(username: str):
+        """
+        Return the user information with goals using the Secondary API.
+        """
+        session = None
+        try:
+            session = Session()
+
+            # Find the user information by username
+            user_info = session.query(UserInfo).filter(UserInfo.username == username).first()
+
+            if not user_info:
+                error_msg = f"User with username {username} not found."
+                logger.warning(error_msg)
+                return {"message": error_msg}, 404
+
+            saving_goals: List[SavingGoalViewSchema] = []
+            total_savings: float = 0.0
+            for goal_id in user_info.goal_ids:
+                saving_goal_data = SavingGoalService.get_saving_goal_by_id(goal_id)
+
+                if not saving_goal_data:
+                    logger.warning(f"Saving goal with ID {goal_id} not found.")
+                    continue
+
+                total_savings += saving_goal_data["monthly_savings"]
+                saving_goal_instance = SavingGoalViewSchema(
+                    id=saving_goal_data["id"],
+                    goal_name=saving_goal_data["goal_name"],
+                    goal_currency=saving_goal_data["goal_currency"],
+                    goal_value=saving_goal_data["goal_value"],
+                    monthly_savings=saving_goal_data["monthly_savings"],
+                    converted_value=saving_goal_data["converted_value"],
+                    created_at=saving_goal_data["created_at"],
+                )
+                saving_goals.append(saving_goal_instance)
+
+            user_info_goal_instance = UserInfoSavingGoalSchema(
+                username=user_info.username,
+                password=user_info.password,
+                goals=saving_goals,
+                salary=user_info.salary,
+                total_savings=total_savings,
+                created_at=user_info.created_at,
+            )
+
+            logger.info(f"{username}")
+            return user_info_goal_instance.model_dump(), 200
+
+        except Exception as e:
+            error_msg = f"Could not {username}."
+            logger.warning(f"Error {username}: {str(e)}")
+            return {"message": error_msg}, 400
+
+        finally:
+            if session:
+                session.close()
+
+    @staticmethod
+    def delete_user_information(username: str):
+        """
+        Deletes a specific user by its username.
+        """
+        logger.info(f"Deleting saving goal with ID: '{username}'")
+
+        session = None
+        try:
+            session = Session()
+
+            # Find the user by its username
+            user_info = session.query(UserInfo).filter(UserInfo.username == username).first()
+
+            if not user_info:
+                error_msg = f"User with username {username} not found."
+                logger.warning(error_msg)
+                return {"message": error_msg}, 404
+
+            # Delete the user
+            session.delete(user_info)
+            session.commit()
+            logger.info(f"User with username {username} deleted successfully")
+
+            return {"message": f"User with username {username} deleted successfully"}, 200
+
+        except Exception as e:
+            error_msg = f"Error deleting user with username {username}."
+            logger.error(f"{error_msg}: {str(e)}")
+            return {"message": error_msg}, 400
+
+        finally:
+            if session:
+                session.close()
+
+    @staticmethod
     def put_user_username(username: str, update_username: UserInfoUpdateUsernameSchema):
         """
         Updates the username of an existing user.
@@ -62,7 +159,7 @@ class UserInfoService:
         try:
             session = Session()
 
-            # Find the username by username
+            # Find the user information by username
             user_info = session.query(UserInfo).filter(UserInfo.username == username).first()
 
             if not user_info:
@@ -142,15 +239,6 @@ class UserInfoService:
 
         session = None
         try:
-            goal_instance = SavingGoalSchema(**goal_data)
-            secondary_api_response = SavingGoalService.post_saving_goal(goal_instance)
-            if not secondary_api_response:
-                return {"message": "Failed to create goal in secondary API."}, 400
-
-            goal_id = secondary_api_response.get("id")
-            if not goal_id:
-                return {"message": "Goal ID not found in the response."}, 400
-
             session = Session()
             user_info = session.query(UserInfo).filter(UserInfo.username == username).first()
 
@@ -161,6 +249,15 @@ class UserInfoService:
 
             if user_info.goal_ids is None:
                 user_info.goal_ids = []
+
+            goal_instance = SavingGoalSchema(**goal_data)
+            secondary_api_response = SavingGoalService.post_saving_goal(goal_instance)
+            if not secondary_api_response:
+                return {"message": "Failed to create goal in secondary API."}, 400
+
+            goal_id = secondary_api_response.get("id")
+            if not goal_id:
+                return {"message": "Goal ID not found in the response."}, 400
 
             user_info.goal_ids.append(goal_id)
             logger.info(f"user_info: {user_info}")
