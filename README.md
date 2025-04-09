@@ -4,7 +4,7 @@
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-FFCA28?style=for-the-badge&logo=sqlalchemy&logoColor=black)  
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-A API Principal é um serviço desenvolvido em FastAPI que gerencia usuários, salários e metas de economia.
+A **API Principal** é um serviço desenvolvido em FastAPI que gerencia usuários, salários e metas de economia.
 Ela permite o cadastro e gerenciamento de usuários, bem como a criação e consulta de metas (goals), 
 realizando integração direta com a API Secundária para o gerenciamento completo das metas de economia.
 
